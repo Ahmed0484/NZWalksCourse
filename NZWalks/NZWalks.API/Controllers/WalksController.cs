@@ -12,11 +12,16 @@ namespace NZWalks.API.Controllers
     {
         private readonly IWalkRepository repo;
         private readonly IMapper mapper;
+        private readonly IRegionRepository regionRepo;
+        private readonly IWalkDifficultyRepository walkDifficultyRepo;
 
-        public WalksController(IWalkRepository repo, IMapper mapper)
+        public WalksController(IWalkRepository repo, IMapper mapper,
+            IRegionRepository regionRepo, IWalkDifficultyRepository walkDifficultyRepo)
         {
             this.repo = repo;
             this.mapper = mapper;
+            this.regionRepo = regionRepo;
+            this.walkDifficultyRepo = walkDifficultyRepo;
         }
 
         [HttpGet]
@@ -50,6 +55,11 @@ namespace NZWalks.API.Controllers
         [HttpPost]
         public async Task<IActionResult> AddWalkAsync([FromBody] AddWalkRequest addWalkRequest)
         {
+            // Validate the incoming request
+            if (!(await ValidateAddWalkAsync(addWalkRequest)))
+            {
+                return BadRequest(ModelState);
+            }
             // Convert DTO to Domain Object
             var walkDomain = new Walk
             {
@@ -82,6 +92,11 @@ namespace NZWalks.API.Controllers
         public async Task<IActionResult> UpdateWalkAsync([FromRoute] Guid id,
             [FromBody] UpdateWalkRequest updateWalkRequest)
         {
+            // Validate the incoming request
+            if (!(await ValidateUpdateWalkAsync(updateWalkRequest)))
+            {
+                return BadRequest(ModelState);
+            }
             // Convert DTO to Domain object
             var walkDomain = new Walk
             {
@@ -130,6 +145,98 @@ namespace NZWalks.API.Controllers
 
             return Ok(walkDTO);
         }
+
+        #region Private methods
+
+        private async Task<bool> ValidateAddWalkAsync(AddWalkRequest addWalkRequest)
+        {
+            if (addWalkRequest == null)
+            {
+                ModelState.AddModelError(nameof(addWalkRequest),
+                    $"{nameof(addWalkRequest)} cannot be empty.");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(addWalkRequest.Name))
+            {
+                ModelState.AddModelError(nameof(addWalkRequest.Name),
+                    $"{nameof(addWalkRequest.Name)} is required.");
+            }
+
+            if (addWalkRequest.Length <= 0)
+            {
+                ModelState.AddModelError(nameof(addWalkRequest.Length),
+                    $"{nameof(addWalkRequest.Length)} should be greater than zero.");
+            }
+
+            var region = await regionRepo.GetAsync(addWalkRequest.RegionId);
+            if (region == null)
+            {
+                ModelState.AddModelError(nameof(addWalkRequest.RegionId),
+                    $"{nameof(addWalkRequest.RegionId)} is invalid.");
+            }
+
+            var walkDifficulty = await walkDifficultyRepo.GetAsync(addWalkRequest.WalkDifficultyId);
+            if (walkDifficulty == null)
+            {
+                ModelState.AddModelError(nameof(addWalkRequest.WalkDifficultyId),
+                       $"{nameof(addWalkRequest.WalkDifficultyId)} is invalid.");
+
+            }
+
+            if (ModelState.ErrorCount > 0)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task<bool> ValidateUpdateWalkAsync(UpdateWalkRequest updateWalkRequest)
+        {
+            if (updateWalkRequest == null)
+            {
+                ModelState.AddModelError(nameof(updateWalkRequest),
+                    $"{nameof(updateWalkRequest)} cannot be empty.");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(updateWalkRequest.Name))
+            {
+                ModelState.AddModelError(nameof(updateWalkRequest.Name),
+                    $"{nameof(updateWalkRequest.Name)} is required.");
+            }
+
+            if (updateWalkRequest.Length <= 0)
+            {
+                ModelState.AddModelError(nameof(updateWalkRequest.Length),
+                    $"{nameof(updateWalkRequest.Length)} should be greater than zero.");
+            }
+
+            var region = await regionRepo.GetAsync(updateWalkRequest.RegionId);
+            if (region == null)
+            {
+                ModelState.AddModelError(nameof(updateWalkRequest.RegionId),
+                    $"{nameof(updateWalkRequest.RegionId)} is invalid.");
+            }
+
+            var walkDifficulty = await walkDifficultyRepo.GetAsync(updateWalkRequest.WalkDifficultyId);
+            if (walkDifficulty == null)
+            {
+                ModelState.AddModelError(nameof(updateWalkRequest.WalkDifficultyId),
+                       $"{nameof(updateWalkRequest.WalkDifficultyId)} is invalid.");
+
+            }
+
+            if (ModelState.ErrorCount > 0)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        #endregion
 
     }
 }
